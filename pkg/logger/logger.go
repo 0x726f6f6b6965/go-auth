@@ -63,11 +63,7 @@ func customLevelEncoder(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) 
 		enc.AppendString("WRN")
 	} else if level == zap.ErrorLevel {
 		enc.AppendString("ERR")
-	} else if level == zap.DPanicLevel {
-		enc.AppendString("CRT")
-	} else if level == zap.PanicLevel {
-		enc.AppendString("CRT")
-	} else if level == zap.FatalLevel {
+	} else if level == zap.DPanicLevel || level == zap.PanicLevel || level == zap.FatalLevel {
 		enc.AppendString("CRT")
 	} else {
 		enc.AppendString("???")

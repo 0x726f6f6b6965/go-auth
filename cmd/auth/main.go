@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -26,10 +25,9 @@ func main() {
 		log.Fatal("unmarshal yaml error", err)
 		return
 	}
-	ctx := context.Background()
-	auth := initAuth(ctx, cfg)
+	auth := initAuth(cfg)
 
-	policy, cleanup, err := initPolicyService(ctx, cfg)
+	policy, cleanup, err := initPolicyService(cfg)
 	if err != nil {
 		log.Fatal("init policy service error", err)
 		return
@@ -42,7 +40,7 @@ func main() {
 			return
 		}
 	}()
-	user, cleanup2, err := initUserService(ctx, cfg, auth)
+	user, cleanup2, err := initUserService(cfg, auth)
 	if err != nil {
 		log.Fatal("init user service error", err)
 		return
@@ -56,26 +54,26 @@ func main() {
 		}
 	}()
 
-	userAPI, err := initUserAPI(ctx, user)
+	userAPI, err := initUserAPI(user)
 	if err != nil {
 		log.Fatal("init user api error", err)
 		return
 	}
 
-	policyAPI, err := initPolicyAPI(ctx, policy)
+	policyAPI, err := initPolicyAPI(policy)
 	if err != nil {
 		log.Fatal("init policy api error", err)
 		return
 	}
 
-	policyGrpcClient, cleanup3, err := initPolicyGrpcClient(ctx, cfg)
+	policyGrpcClient, cleanup3, err := initPolicyGrpcClient(cfg)
 	if err != nil {
 		log.Fatal("init policy grpc client error", err)
 		return
 	}
 	defer cleanup3()
 
-	engine, err := initGin(ctx, cfg)
+	engine, err := initGin(cfg)
 	if err != nil {
 		log.Fatal("init gin engine error", err)
 		return

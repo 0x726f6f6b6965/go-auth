@@ -19,9 +19,9 @@ func New(db *gorm.DB) *SotrageUsers {
 }
 
 func (m *SotrageUsers) GetUserInfo(email string) (*models.User, error) {
-	data := models.User{}
-	err := m.db.Table(m.Table.TableName()).Where("email = ?", email).First(&data).Error
-	return &data, err
+	data := &models.User{}
+	err := m.db.Table(m.Table.TableName()).First(data, "email = ?", email).Error
+	return data, err
 }
 
 // GetUserInfoWithRoles get user info with roles
