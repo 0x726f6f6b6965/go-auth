@@ -1,15 +1,15 @@
 package config
 
-import jwtauth "github.com/0x726f6f6b6965/go-auth/pkg/jwt_auth"
+import jwtauth "github.com/0x726f6f6b6965/go-auth/pkg/jwt-auth"
 
 type AppConfig struct {
-	Env        string         `yaml:"env" mapstructure:"env" cobra-usage:"the application environment" cobra-default:"dev"`
-	Port       uint64         `yaml:"port" mapstructure:"port" validate:"required,gte=0" cobra-usage:"the application port" cobra-default:"8080"`
-	Grpc       Grpc           `yaml:"grpc" mapstructure:"grpc"`
-	PolicyGrpc Grpc           `yaml:"policy-grpc" mapstructure:"policy-grpc"`
-	Log        LogConfig      `yaml:"log" mapstructure:"log"`
-	DB         DBConfig       `yaml:"db" mapstructure:"db"`
-	Jwt        jwtauth.Config `yaml:"jwt" mapstructure:"jwt"`
+	Env      string         `yaml:"env" mapstructure:"env" cobra-usage:"the application environment" cobra-default:"dev"`
+	HttpPort uint64         `yaml:"http-port" mapstructure:"grpc-port" validate:"required,gte=0" cobra-usage:"the application port" cobra-default:"8080"`
+	GrpcPort uint64         `yaml:"grpc-port" mapstructure:"grpc-port"`
+	Log      LogConfig      `yaml:"log" mapstructure:"log"`
+	DB       DBConfig       `yaml:"db" mapstructure:"db"`
+	Jwt      jwtauth.Config `yaml:"jwt" mapstructure:"jwt"`
+	Redis    RedisConfig    `yaml:"redis" mapstructure:"redis"`
 }
 
 type DBConfig struct {
@@ -28,6 +28,10 @@ type LogConfig struct {
 	ServiceName      string `yaml:"service-name" mapstructure:"service-name" cobra-usage:"the application service name" cobra-default:""`
 }
 
-type Grpc struct {
-	Port uint64 `yaml:"port" mapstructure:"port" validate:"required,gte=0" cobra-usage:"the application port" cobra-default:"6666"`
+type RedisConfig struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	Password string `yaml:"password"`
+	DBNum    int    `yaml:"db-num"`
+	PoolSize int    `yaml:"pool-size"`
 }

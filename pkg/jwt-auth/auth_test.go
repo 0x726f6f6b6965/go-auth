@@ -69,7 +69,7 @@ func TestExtractTokenMetadata(t *testing.T) {
 	})
 
 	t.Run("expire", func(t *testing.T) {
-		auth.duration = 0
+		auth.accessExpire = 0
 		token, err := auth.GenerateNewAccessToken("abc", []string{"test"})
 		if err != nil {
 			t.Error(err)
@@ -85,7 +85,7 @@ func TestExtractTokenMetadata(t *testing.T) {
 	})
 
 	t.Run("unknow error", func(t *testing.T) {
-		auth.duration = 0
+		auth.accessExpire = 0
 		token, err := auth.GenerateNewAccessToken("abc", []string{"test"})
 		if err != nil {
 			t.Error(err)

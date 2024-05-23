@@ -3,12 +3,14 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/0x726f6f6b6965/go-auth/internal/helper"
 	"github.com/0x726f6f6b6965/go-auth/internal/storage/models"
 	"github.com/0x726f6f6b6965/go-auth/internal/storage/user"
-	jwtauth "github.com/0x726f6f6b6965/go-auth/pkg/jwt_auth"
+	"github.com/0x726f6f6b6965/go-auth/pkg/cache"
+	jwtauth "github.com/0x726f6f6b6965/go-auth/pkg/jwt-auth"
 	"github.com/0x726f6f6b6965/go-auth/pkg/mask"
 	pbPolicy "github.com/0x726f6f6b6965/go-auth/protos/policy/v1"
 	pb "github.com/0x726f6f6b6965/go-auth/protos/user/v1"
@@ -20,11 +22,13 @@ import (
 
 var (
 	ROLE_DEFAULT = pbPolicy.RoleType_ROLE_TYPE_NORMAL.String()
+	LOGOUT_KEY   = "logout:%s"
 	testSalt     *helper.Salt
 )
 
 const (
-	TAG_DB = "gorm"
+	TAG_DB     = "gorm"
+	UNIQUE_KEY = "user.email"
 )
 
 type userService struct {
@@ -32,13 +36,15 @@ type userService struct {
 	logger *zap.Logger
 	store  *user.SotrageUsers
 	auth   *jwtauth.JwtAuth
+	cache  cache.Cache
 }
 
-func NewUserService(auth *jwtauth.JwtAuth, db *gorm.DB, logger *zap.Logger) pb.UserServiceServer {
+func NewUserService(auth *jwtauth.JwtAuth, db *gorm.DB, cache cache.Cache, logger *zap.Logger) pb.UserServiceServer {
 	store := user.New(db)
 	return &userService{
 		logger: logger,
 		store:  store,
+		cache:  cache,
 		auth:   auth,
 	}
 }
@@ -127,15 +133,46 @@ func (s *userService) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Toke
 }
 
 // Logout implements v1.UserServiceServer.
-func (u *userService) Logout(context.Context, *pb.LogoutRequest) (*emptypb.Empty, error) {
-	panic("unimplemented")
+func (s *userService) Logout(ctx context.Context, req *pb.LogoutRequest) (*emptypb.Empty, error) {
+	_, err := s.auth.VerifyToken(req.Token.RefreshToken, true)
+	if err != nil {
+		return nil, errors.Join(ErrorInvalid, fmt.Errorf("token invalid"))
+	}
+	_, err = s.cache.Get(ctx, fmt.Sprintf(LOGOUT_KEY, req.Token.RefreshToken))
+	if err != nil && !errors.Is(err, cache.ErrKeyNotFound) {
+		s.logger.Error("Logout: error getting cache",
+			zap.Any("request", req),
+			zap.Error(err))
+		return nil, errors.Join(ErrDB, err)
+	} else if err == nil {
+		return &emptypb.Empty{}, nil
+	}
+
+	err = s.cache.Set(ctx, fmt.Sprintf(LOGOUT_KEY, req.Token.AccessToken),
+		true, s.auth.GetAccessExpire())
+	if err != nil {
+		s.logger.Error("Logout: error setting access cache",
+			zap.Any("request", req),
+			zap.Error(err))
+		return nil, errors.Join(ErrDB, err)
+	}
+
+	err = s.cache.Set(ctx, fmt.Sprintf(LOGOUT_KEY, req.Token.RefreshToken),
+		true, s.auth.GetRefreshExpire())
+	if err != nil {
+		s.logger.Error("Logout: error setting refresh cache",
+			zap.Any("request", req),
+			zap.Error(err))
+		return nil, errors.Join(ErrDB, err)
+	}
+	return &emptypb.Empty{}, nil
 }
 
 // UpdateToken: update a used verified token to extend its expiration.
-func (u *userService) UpdateToken(ctx context.Context, req *pb.UpdateTokenRequest) (*pb.Token, error) {
-	access, err := u.auth.GenerateNewAccessToken(req.Subject, req.Roles)
+func (s *userService) UpdateToken(ctx context.Context, req *pb.UpdateTokenRequest) (*pb.Token, error) {
+	access, err := s.auth.GenerateNewAccessToken(req.Subject, req.Roles)
 	if err != nil {
-		u.logger.Error("UpdateToken: error generating new access token",
+		s.logger.Error("UpdateToken: error generating new access token",
 			zap.Any("request", req),
 			zap.Error(err))
 		return nil, errors.Join(ErrCreateToken, err)
@@ -173,7 +210,7 @@ func (s *userService) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest)
 
 	dbData := make(map[string]interface{})
 	for key, val := range data {
-		if key == "user.email" {
+		if key == UNIQUE_KEY {
 			continue
 		}
 		fields := strings.Split(key, ".")

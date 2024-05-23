@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"github.com/0x726f6f6b6965/go-auth/internal/helper"
-	jwtauth "github.com/0x726f6f6b6965/go-auth/pkg/jwt_auth"
-	"github.com/0x726f6f6b6965/go-auth/policy"
+	"github.com/0x726f6f6b6965/go-auth/pkg/cache"
+	jwtauth "github.com/0x726f6f6b6965/go-auth/pkg/jwt-auth"
 	pbPolicy "github.com/0x726f6f6b6965/go-auth/protos/policy/v1"
 	pbUser "github.com/0x726f6f6b6965/go-auth/protos/user/v1"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-redis/redismock/v9"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -21,115 +23,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestGetAllow(t *testing.T) {
-	ser := initPolicyService()
-	ctx := context.Background()
-
-	t.Run("sucess", func(t *testing.T) {
-		req := &pbPolicy.GetAllowRequest{
-			Roles:    []pbPolicy.RoleType{pbPolicy.RoleType_ROLE_TYPE_NORMAL},
-			Action:   pbPolicy.ActionType_ACTION_TYPE_READ,
-			Resource: "/v1/user",
-		}
-		resp, err := ser.GetAllow(ctx, req)
-		assert.Nil(t, err)
-		assert.True(t, resp.Value)
-	})
-	t.Run("not allow by action", func(t *testing.T) {
-		req := &pbPolicy.GetAllowRequest{
-			Roles:    []pbPolicy.RoleType{pbPolicy.RoleType_ROLE_TYPE_NORMAL},
-			Action:   pbPolicy.ActionType_ACTION_TYPE_DELETE,
-			Resource: "/v1/user",
-		}
-		resp, err := ser.GetAllow(ctx, req)
-		assert.Nil(t, err)
-		assert.False(t, resp.Value)
-	})
-
-	t.Run("not allow by resource", func(t *testing.T) {
-		req := &pbPolicy.GetAllowRequest{
-			Roles:    []pbPolicy.RoleType{pbPolicy.RoleType_ROLE_TYPE_NORMAL},
-			Action:   pbPolicy.ActionType_ACTION_TYPE_WRITE,
-			Resource: "/v1/notExist",
-		}
-		resp, err := ser.GetAllow(ctx, req)
-		assert.Nil(t, err)
-		assert.False(t, resp.Value)
-	})
-	t.Run("invalid role", func(t *testing.T) {
-		req := &pbPolicy.GetAllowRequest{
-			Roles:    []pbPolicy.RoleType{-1},
-			Action:   pbPolicy.ActionType_ACTION_TYPE_READ,
-			Resource: "/v1/user",
-		}
-		_, err := ser.GetAllow(ctx, req)
-		assert.NotNil(t, err)
-		assert.ErrorIs(t, err, ErrorInvalid)
-	})
-	t.Run("invalid action", func(t *testing.T) {
-		req := &pbPolicy.GetAllowRequest{
-			Roles:    []pbPolicy.RoleType{1},
-			Action:   -1,
-			Resource: "/v1/user",
-		}
-		_, err := ser.GetAllow(ctx, req)
-		assert.NotNil(t, err)
-		assert.ErrorIs(t, err, ErrorInvalid)
-	})
-}
-
-func TestGetPermissions(t *testing.T) {
-	ser := initPolicyService()
-	ctx := context.Background()
-	t.Run("success", func(t *testing.T) {
-		resp, err := ser.GetPermissions(ctx, nil)
-		assert.Nil(t, err)
-		data, err := policy.GetData()
-		assert.Nil(t, err)
-		grants := data[ROLE_GRANTS].(map[string]interface{})
-		count := 0
-		for _, grant := range grants {
-			rules := grant.([]interface{})
-			count += len(rules)
-		}
-		assert.Equal(t, count, len(resp.Permissions))
-	})
-}
-
-func TestGetRolePermissions(t *testing.T) {
-	ser := initPolicyService()
-	ctx := context.Background()
-	t.Run("success", func(t *testing.T) {
-		req := &pbPolicy.GetRolePermissionsRequest{
-			Role: pbPolicy.RoleType_ROLE_TYPE_NORMAL,
-		}
-		resp, err := ser.GetRolePermissions(ctx, req)
-		assert.Nil(t, err)
-		data, err := policy.GetData()
-		assert.Nil(t, err)
-		info := data[USER_ROLES].(map[string]interface{})
-		roles := info[req.Role.String()].([]interface{})
-		grants := data[ROLE_GRANTS].(map[string]interface{})
-		count := 0
-		for _, role := range roles {
-			rules := grants[role.(string)].([]interface{})
-			count += len(rules)
-		}
-		assert.Equal(t, count, len(resp.Permissions))
-	})
-
-	t.Run("role not exist", func(t *testing.T) {
-		req := &pbPolicy.GetRolePermissionsRequest{
-			Role: -1,
-		}
-		_, err := ser.GetRolePermissions(ctx, req)
-		assert.NotNil(t, err)
-		assert.ErrorIs(t, err, ErrorInvalid)
-	})
-}
-
 func TestUserLogin(t *testing.T) {
-	ser, cleanup, mock, auth, err := initUserService()
+	ser, cleanup, mock, _, auth, err := initUserService()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +132,7 @@ func TestUserLogin(t *testing.T) {
 }
 
 func TestCreateUser(t *testing.T) {
-	ser, cleanup, mock, auth, err := initUserService()
+	ser, cleanup, mock, _, auth, err := initUserService()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +247,7 @@ func TestCreateUser(t *testing.T) {
 }
 
 func TestUpdateToken(t *testing.T) {
-	ser, cleanup, _, auth, err := initUserService()
+	ser, cleanup, _, _, auth, err := initUserService()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -382,7 +277,7 @@ func TestUpdateToken(t *testing.T) {
 }
 
 func TestUpdateUser(t *testing.T) {
-	ser, cleanup, mock, _, err := initUserService()
+	ser, cleanup, mock, _, _, err := initUserService()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -480,7 +375,144 @@ func TestUpdateUser(t *testing.T) {
 	})
 }
 
-func initUserService() (pbUser.UserServiceServer, func() error, sqlmock.Sqlmock, *jwtauth.JwtAuth, error) {
+func TestUserLogout(t *testing.T) {
+	ser, cleanup, _, rmock, auth, err := initUserService()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	ctx := context.Background()
+
+	t.Run("success", func(t *testing.T) {
+		access, err := auth.GenerateNewAccessToken("test-user", []string{"role-1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		refresh, err := auth.GenerateNewRefreshToken("test-user", []string{"role-1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := &pbUser.LogoutRequest{
+			Token: &pbUser.Token{
+				AccessToken:  access,
+				RefreshToken: refresh,
+			},
+		}
+		rmock.ExpectGet(fmt.Sprintf(LOGOUT_KEY, refresh)).SetErr(redis.Nil)
+		rmock.ExpectSet(fmt.Sprintf(LOGOUT_KEY, access), true, auth.GetAccessExpire()).SetVal("OK")
+		rmock.ExpectSet(fmt.Sprintf(LOGOUT_KEY, refresh), true, auth.GetRefreshExpire()).SetVal("OK")
+		_, err = ser.Logout(ctx, req)
+		assert.Nil(t, err)
+	})
+
+	t.Run("already logout", func(t *testing.T) {
+		access, err := auth.GenerateNewAccessToken("test-user", []string{"role-1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		refresh, err := auth.GenerateNewRefreshToken("test-user", []string{"role-1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := &pbUser.LogoutRequest{
+			Token: &pbUser.Token{
+				AccessToken:  access,
+				RefreshToken: refresh,
+			},
+		}
+		rmock.ExpectGet(fmt.Sprintf(LOGOUT_KEY, refresh)).SetVal("true")
+		_, err = ser.Logout(ctx, req)
+		assert.Nil(t, err)
+	})
+
+	t.Run("invalid token", func(t *testing.T) {
+		access, err := auth.GenerateNewAccessToken("test-user", []string{"role-1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		refresh, err := auth.GenerateNewRefreshToken("test-user", []string{"role-1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := &pbUser.LogoutRequest{
+			Token: &pbUser.Token{
+				AccessToken:  refresh,
+				RefreshToken: access,
+			},
+		}
+		_, err = ser.Logout(ctx, req)
+		assert.NotNil(t, err)
+		assert.ErrorIs(t, err, ErrorInvalid)
+	})
+
+	t.Run("error getting refresh cache", func(t *testing.T) {
+		access, err := auth.GenerateNewAccessToken("test-user", []string{"role-1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		refresh, err := auth.GenerateNewRefreshToken("test-user", []string{"role-1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := &pbUser.LogoutRequest{
+			Token: &pbUser.Token{
+				AccessToken:  access,
+				RefreshToken: refresh,
+			},
+		}
+		rmock.ExpectGet(fmt.Sprintf(LOGOUT_KEY, refresh)).SetErr(fmt.Errorf("unknow"))
+		_, err = ser.Logout(ctx, req)
+		assert.NotNil(t, err)
+		assert.ErrorIs(t, err, ErrDB)
+	})
+
+	t.Run("error setting access cache", func(t *testing.T) {
+		access, err := auth.GenerateNewAccessToken("test-user", []string{"role-1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		refresh, err := auth.GenerateNewRefreshToken("test-user", []string{"role-1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := &pbUser.LogoutRequest{
+			Token: &pbUser.Token{
+				AccessToken:  access,
+				RefreshToken: refresh,
+			},
+		}
+		rmock.ExpectGet(fmt.Sprintf(LOGOUT_KEY, refresh)).SetErr(redis.Nil)
+		rmock.ExpectSet(fmt.Sprintf(LOGOUT_KEY, access), true, auth.GetAccessExpire()).SetErr(fmt.Errorf("unknow"))
+		_, err = ser.Logout(ctx, req)
+		assert.NotNil(t, err)
+		assert.ErrorIs(t, err, ErrDB)
+	})
+
+	t.Run("error setting refresh cache", func(t *testing.T) {
+		access, err := auth.GenerateNewAccessToken("test-user", []string{"role-1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		refresh, err := auth.GenerateNewRefreshToken("test-user", []string{"role-1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := &pbUser.LogoutRequest{
+			Token: &pbUser.Token{
+				AccessToken:  access,
+				RefreshToken: refresh,
+			},
+		}
+		rmock.ExpectGet(fmt.Sprintf(LOGOUT_KEY, refresh)).SetErr(redis.Nil)
+		rmock.ExpectSet(fmt.Sprintf(LOGOUT_KEY, access), true, auth.GetAccessExpire()).SetVal("OK")
+		rmock.ExpectSet(fmt.Sprintf(LOGOUT_KEY, refresh), true, auth.GetRefreshExpire()).SetErr(fmt.Errorf("unknow"))
+		_, err = ser.Logout(ctx, req)
+		assert.NotNil(t, err)
+		assert.ErrorIs(t, err, ErrDB)
+	})
+}
+
+func initUserService() (pbUser.UserServiceServer, func() error, sqlmock.Sqlmock, redismock.ClientMock, *jwtauth.JwtAuth, error) {
 	logger, _ := zap.NewDevelopment()
 	os.Setenv("test-access", "test-access")
 	os.Setenv("test-refresh", "test-refresh")
@@ -493,20 +525,23 @@ func initUserService() (pbUser.UserServiceServer, func() error, sqlmock.Sqlmock,
 	auth := jwtauth.NewJWTAuth(cfg)
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	if err != nil {
-		return nil, func() error { return nil }, nil, nil, err
+		return nil, func() error { return nil }, nil, nil, nil, err
 	}
 	gormdb, err := gorm.Open(postgres.New(postgres.Config{
 		Conn: db,
 	}), &gorm.Config{})
 	if err != nil {
-		return nil, db.Close, mock, nil, err
+		return nil, db.Close, mock, nil, nil, err
 	}
-	ser := NewUserService(auth, gormdb.Debug(), logger)
-	return ser, db.Close, mock, auth, nil
-}
 
-func initPolicyService() pbPolicy.PolicyServiceServer {
-	logger, _ := zap.NewDevelopment()
-	ser := NewPolicyService(logger)
-	return ser
+	rdb, rmock := redismock.NewClientMock()
+	redisClient := &cache.RedisCache{
+		Client: rdb,
+	}
+	ser := NewUserService(auth, gormdb.Debug(), redisClient, logger)
+	return ser, func() error {
+		db.Close()
+		rdb.Close()
+		return nil
+	}, mock, rmock, auth, nil
 }

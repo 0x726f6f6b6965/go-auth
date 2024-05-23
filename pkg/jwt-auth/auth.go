@@ -25,7 +25,8 @@ type JwtAuth struct {
 	issuer        string
 	accessSecret  string
 	refreshSecret string
-	duration      time.Duration
+	refreshExpire time.Duration
+	accessExpire  time.Duration
 }
 
 func NewJWTAuth(cfg *Config) *JwtAuth {
@@ -33,18 +34,35 @@ func NewJWTAuth(cfg *Config) *JwtAuth {
 		issuer:        cfg.Issuer,
 		accessSecret:  os.Getenv(cfg.AccessSecret),
 		refreshSecret: os.Getenv(cfg.RefreshSecret),
-		duration:      time.Duration(cfg.ExpiresIn) * time.Second,
+		accessExpire:  time.Duration(cfg.ExpiresIn) * time.Second,
+		refreshExpire: time.Duration(cfg.ExpiresIn) * time.Second * 2,
 	}
 }
 
 func (auth *JwtAuth) GenerateNewAccessToken(user string, roles []string) (string, error) {
-	token := auth.generateToken(user, roles, 1)
+	token := auth.generateToken(user, roles, auth.accessExpire)
 	return token.SignedString([]byte(auth.accessSecret))
 }
 
 func (auth *JwtAuth) GenerateNewRefreshToken(user string, roles []string) (string, error) {
-	token := auth.generateToken(user, roles, 2)
+	token := auth.generateToken(user, roles, auth.refreshExpire)
 	return token.SignedString([]byte(auth.refreshSecret))
+}
+
+func (auth *JwtAuth) GetAccessExpire() time.Duration {
+	return auth.accessExpire
+}
+
+func (auth *JwtAuth) GetRefreshExpire() time.Duration {
+	return auth.refreshExpire
+}
+
+func (auth *JwtAuth) SetAccessExpire(expire time.Duration) {
+	auth.accessExpire = expire
+}
+
+func (auth *JwtAuth) SetRefreshExpire(expire time.Duration) {
+	auth.refreshExpire = expire
 }
 
 func (auth *JwtAuth) generateToken(user string, roles []string, times time.Duration) *jwt.Token {
@@ -53,7 +71,7 @@ func (auth *JwtAuth) generateToken(user string, roles []string, times time.Durat
 			Issuer:    auth.issuer,
 			Subject:   user,
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(auth.duration * times)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(times)),
 		},
 		Roles: roles,
 	}
@@ -61,7 +79,8 @@ func (auth *JwtAuth) generateToken(user string, roles []string, times time.Durat
 }
 
 func (auth *JwtAuth) ExtractTokenMetadata(r *http.Request, isRefresh bool) (*TokenMetadata, error) {
-	token, err := auth.verifyToken(r, isRefresh)
+	tokenString := extractToken(r)
+	token, err := auth.VerifyToken(tokenString, isRefresh)
 	if err != nil {
 		switch {
 		case errors.Is(err, jwt.ErrTokenExpired):
@@ -88,17 +107,16 @@ func (auth *JwtAuth) ExtractTokenMetadata(r *http.Request, isRefresh bool) (*Tok
 	}, nil
 }
 
-func (auth *JwtAuth) verifyToken(r *http.Request, isRefresh bool) (*jwt.Token, error) {
-	tokenString := extractToken(r)
+func (auth *JwtAuth) VerifyToken(token string, isRefresh bool) (*jwt.Token, error) {
 	if isRefresh {
-		return jwt.ParseWithClaims(tokenString, &ClaimsWithRoles{}, func(t *jwt.Token) (interface{}, error) {
+		return jwt.ParseWithClaims(token, &ClaimsWithRoles{}, func(t *jwt.Token) (interface{}, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
 			return []byte(auth.refreshSecret), nil
 		})
 	}
-	return jwt.ParseWithClaims(tokenString, &ClaimsWithRoles{}, func(t *jwt.Token) (interface{}, error) {
+	return jwt.ParseWithClaims(token, &ClaimsWithRoles{}, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
 		}
