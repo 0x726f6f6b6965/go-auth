@@ -38,8 +38,8 @@ func InitCache(cfg *config.AppConfig) (cache.Cache, func(), error) {
 	}, nil
 }
 
-func InitJwtAuth(cfg *config.AppConfig) (*jwtauth.JwtAuth, error) {
+func InitJwtAuth(cfg *config.AppConfig) *jwtauth.JwtAuth {
 	jwtauthConfig := jwtAuthConfig(cfg)
 	jwtAuth := jwtauth.NewJWTAuth(jwtauthConfig)
-	return jwtAuth, nil
+	return jwtAuth
 }

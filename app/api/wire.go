@@ -19,6 +19,6 @@ func InitCache(cfg *config.AppConfig) (cache cache.Cache, cleanup func(), err er
 	panic(wire.Build(cacheSet))
 }
 
-func InitJwtAuth(cfg *config.AppConfig) (auth *jwtauth.JwtAuth, err error) {
+func InitJwtAuth(cfg *config.AppConfig) (auth *jwtauth.JwtAuth) {
 	panic(wire.Build(authSet))
 }

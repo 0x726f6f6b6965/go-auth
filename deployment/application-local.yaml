@@ -1,9 +1,9 @@
-port: 8080
+http-port: 8080
 env: "dev"
-grpc:
-  port: 6868
-policy-grpc:
-  port: 6869
+clients:
+  policy-client:
+    host: "localhost"
+    port: 6868
 db:
   host: "localhost"
   port: 5432
@@ -20,3 +20,9 @@ jwt:
   expires-in: 150
   access-secret: "AS"
   refresh-secret: "RS"
+redis:
+  host: "localhost"
+  port: 6379
+  password: "123456"
+  db: 0
+  pool-size: 10
