@@ -6,12 +6,6 @@ default allow := false
 
 allow if user_is_admin
 
-# allow if {
-# 	some grant in user_is_granted
-# 	input.action == grant.action
-# 	grant.resource in [input.resource, "*"]
-# }
-
 allow if {
 	some grant in user_is_granted
 	input.action == grant.action
