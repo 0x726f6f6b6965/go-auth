@@ -1,0 +1,15 @@
+{
+  "user_roles": {
+    "ROLE_TYPE_ADMIN": ["admin"],
+    "ROLE_TYPE_NORMAL": ["basic_user", "refresh"]
+  },
+  "role_grants": {
+    "basic_user": [
+      { "action": "ACTION_TYPE_READ", "resource": "/v1/user" },
+      { "action": "ACTION_TYPE_WRITE", "resource": "/v1/user/update" }
+    ],
+    "refresh": [
+      { "action": "ACTION_TYPE_READ", "resource": "/v1/token/refresh" }
+    ]
+  }
+}

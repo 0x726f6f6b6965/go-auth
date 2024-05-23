@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS t_user;
+
+DROP DOMAIN IF EXISTS email_address;

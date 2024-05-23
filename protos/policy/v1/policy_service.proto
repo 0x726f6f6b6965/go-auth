@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package policy.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+option go_package = "github.com/0x726f6f6b6965/go-auth/protos/policy/v1;v1";
+
+service PolicyService {
+    // GetAllow: get the result of whether 
+    // the role has permission to perform actions on the resource.
+    rpc GetAllow (GetAllowRequest) returns (google.protobuf.BoolValue);
+
+    // GetRolePermissions: get a list of role-based permissions.
+    rpc GetRolePermissions (GetRolePermissionsRequest) returns (RolePermissions);
+
+    // GetPermissions: get all permissions
+    rpc GetPermissions (google.protobuf.Empty) returns (GetPermissionsResponse);
+}
+
+enum RoleType {
+    ROLE_TYPE_UNSPECIFIED = 0;
+    ROLE_TYPE_ADMIN = 1;
+    ROLE_TYPE_NORMAL = 2;
+}
+
+enum ActionType {
+    ACTION_TYPE_UNSPECIFIED = 0;
+    ACTION_TYPE_READ = 1;
+    ACTION_TYPE_WRITE = 2;
+    ACTION_TYPE_DELETE = 3;
+    ACTION_TYPE_ALL = 4;
+}
+
+message GetAllowRequest {
+    repeated RoleType roles = 1;
+    ActionType action = 2;
+    string resource = 3;
+}
+
+message GetRolePermissionsRequest {
+    RoleType role = 1;
+}
+
+message RolePermissions {
+    RoleType role = 1;
+    repeated Permission permissions = 2;
+}
+
+message GetPermissionsResponse {
+    repeated Permission permissions = 2;
+}
+
+message Permission {
+    string name = 1;
+    ActionType action = 2;
+    string resource = 3;
+}
