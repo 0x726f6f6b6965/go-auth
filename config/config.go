@@ -3,13 +3,14 @@ package config
 import jwtauth "github.com/0x726f6f6b6965/go-auth/pkg/jwt-auth"
 
 type AppConfig struct {
-	Env      string         `yaml:"env" mapstructure:"env" cobra-usage:"the application environment" cobra-default:"dev"`
-	HttpPort uint64         `yaml:"http-port" mapstructure:"grpc-port" validate:"required,gte=0" cobra-usage:"the application port" cobra-default:"8080"`
-	GrpcPort uint64         `yaml:"grpc-port" mapstructure:"grpc-port"`
-	Log      LogConfig      `yaml:"log" mapstructure:"log"`
-	DB       DBConfig       `yaml:"db" mapstructure:"db"`
-	Jwt      jwtauth.Config `yaml:"jwt" mapstructure:"jwt"`
-	Redis    RedisConfig    `yaml:"redis" mapstructure:"redis"`
+	Env      string          `yaml:"env" mapstructure:"env" cobra-usage:"the application environment" cobra-default:"dev"`
+	HttpPort uint64          `yaml:"http-port" mapstructure:"http-port" validate:"required,gte=0" cobra-usage:"the application port" cobra-default:"8080"`
+	GrpcPort uint64          `yaml:"grpc-port" mapstructure:"grpc-port"`
+	Clients  map[string]Grpc `yaml:"clients" mapstructure:"clients"`
+	Log      LogConfig       `yaml:"log" mapstructure:"log"`
+	DB       DBConfig        `yaml:"db" mapstructure:"db"`
+	Jwt      jwtauth.Config  `yaml:"jwt" mapstructure:"jwt"`
+	Redis    RedisConfig     `yaml:"redis" mapstructure:"redis"`
 }
 
 type DBConfig struct {
@@ -34,4 +35,9 @@ type RedisConfig struct {
 	Password string `yaml:"password"`
 	DBNum    int    `yaml:"db-num"`
 	PoolSize int    `yaml:"pool-size"`
+}
+
+type Grpc struct {
+	Host string `yaml:"host"`
+	Port uint64 `yaml:"port"`
 }
