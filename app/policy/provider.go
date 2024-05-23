@@ -1,4 +1,4 @@
-package main
+package policy
 
 import (
 	"github.com/0x726f6f6b6965/go-auth/config"

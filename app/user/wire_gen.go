@@ -4,7 +4,7 @@
 //go:build !wireinject
 // +build !wireinject
 
-package main
+package user
 
 import (
 	"github.com/0x726f6f6b6965/go-auth/config"
@@ -18,30 +18,20 @@ import (
 
 // Injectors from wire.go:
 
-func initUserService(cfg *config.AppConfig) (v1.UserServiceServer, func(), error) {
-	jwtauthConfig := jwtAuthConfig(cfg)
-	jwtAuth := jwtauth.NewJWTAuth(jwtauthConfig)
+func InitUserService(cfg *config.AppConfig, auth *jwtauth.JwtAuth, cache2 cache.Cache) (v1.UserServiceServer, func(), error) {
 	configDBConfig := dbConfig(cfg)
 	db, cleanup, err := storage.NewPostgres(configDBConfig)
 	if err != nil {
 		return nil, nil, err
 	}
-	configRedisConfig := redisConfig(cfg)
-	cacheCache, cleanup2, err := cache.NewRedis(configRedisConfig)
-	if err != nil {
-		cleanup()
-		return nil, nil, err
-	}
 	configLogConfig := logConfig(cfg)
-	zapLogger, cleanup3, err := logger.NewLogger(configLogConfig)
+	zapLogger, cleanup2, err := logger.NewLogger(configLogConfig)
 	if err != nil {
-		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
-	userServiceServer := services.NewUserService(jwtAuth, db, cacheCache, zapLogger)
+	userServiceServer := services.NewUserService(auth, db, cache2, zapLogger)
 	return userServiceServer, func() {
-		cleanup3()
 		cleanup2()
 		cleanup()
 	}, nil

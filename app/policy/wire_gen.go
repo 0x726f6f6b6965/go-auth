@@ -4,7 +4,7 @@
 //go:build !wireinject
 // +build !wireinject
 
-package main
+package policy
 
 import (
 	"github.com/0x726f6f6b6965/go-auth/config"
@@ -15,7 +15,7 @@ import (
 
 // Injectors from wire.go:
 
-func initPolicyService(cfg *config.AppConfig) (v1.PolicyServiceServer, func(), error) {
+func InitPolicyService(cfg *config.AppConfig) (v1.PolicyServiceServer, func(), error) {
 	configLogConfig := logConfig(cfg)
 	zapLogger, cleanup, err := logger.NewLogger(configLogConfig)
 	if err != nil {

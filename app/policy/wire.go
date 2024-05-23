@@ -1,7 +1,7 @@
 //go:build wireinject
 // +build wireinject
 
-package main
+package policy
 
 import (
 	"github.com/0x726f6f6b6965/go-auth/config"
@@ -9,6 +9,6 @@ import (
 	"github.com/google/wire"
 )
 
-func initPolicyService(cfg *config.AppConfig) (service pbPolicy.PolicyServiceServer, cleanup func(), err error) {
+func InitPolicyService(cfg *config.AppConfig) (service pbPolicy.PolicyServiceServer, cleanup func(), err error) {
 	panic(wire.Build(policyService))
 }
