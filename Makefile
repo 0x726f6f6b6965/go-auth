@@ -1,14 +1,6 @@
 PROJECTNAME := $(shell basename "$(PWD)")
 include .env
 export $(shell sed 's/=.*//' .env)
-## DB
-.PHONY: set-psql
-set-psql:
-	@docker run --name MyPostgres -d -p 5432:5432 \
-		-e POSTGRES_DB=$(POSTGRES_DB) \
-		-e POSTGRES_USER=$(POSTGRES_USER) \
-		-e POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
-		--rm postgres:latest
 
 ## proto-lint: Check protobuf rule
 .PHONY: proto-lint
@@ -35,3 +27,20 @@ proto-clean:
 test-go:
 	@go test --coverprofile=coverage.out ./... 
 	@go tool cover -html=coverage.out  
+
+## service-build: Build service image
+.PHONY: service-build
+service-build:
+	@docker build --tag ${SERVICE_NAME}:$(shell git rev-parse HEAD) -f ./build/Dockerfile .
+
+.PHONY: service-up
+service-up:
+	@docker-compose -f ./deployment/compose.yaml --project-directory . up -d
+
+.PHONY: service-down
+service-down:
+	@docker-compose -f ./deployment/compose.yaml --project-directory . down 
+
+.PHONY: storage-migrate
+storage-migrate:
+	@migrate -path migrations -database "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable" up
