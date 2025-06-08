@@ -2,61 +2,81 @@ syntax = "proto3";
 
 package user.v1;
 
-import "google/protobuf/field_mask.proto";
+import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
 
 option go_package = "github.com/0x726f6f6b6965/go-auth/protos/user/v1;v1";
 
-
 service UserService {
-    // CreateUser: create a new user account.
-    rpc CreateUser (CreateUserRequest) returns (Token);
+  // CreateUser: create a new user account.
+  rpc CreateUser(CreateUserRequest) returns (Token) {
+    option (google.api.http) = {
+      post: "/v1/auth/register"
+      body: "*"
+    };
+  }
 
-    // Login: get a validate token based on user information.
-    rpc Login (LoginRequest) returns (Token);
+  // Login: get a validate token based on user information.
+  rpc Login(LoginRequest) returns (Token) {
+    option (google.api.http) = {
+      post: "/v1/auth/login"
+      body: "*"
+    };
+  }
 
-    // UpdateUser: update user information
-    rpc UpdateUser(UpdateUserRequest) returns (google.protobuf.Empty);
+  // UpdateUser: update user information
+  rpc UpdateUser(UpdateUserRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/user/update"
+      body: "*"
+    };
+  };
 
-    // UpdateToken: update a used verified token to extend its expiration.
-    rpc UpdateToken (UpdateTokenRequest) returns (Token);
+  // UpdateToken: update a used verified token to extend its expiration.
+  rpc UpdateToken(UpdateTokenRequest) returns (Token) {
+    option (google.api.http) = {
+      post: "/v1/token/refresh"
+      body: "*"
+    };
+  };
 
-    // Logout: invalidate the token
-    rpc Logout(LogoutRequest) returns (google.protobuf.Empty);
+  // Logout: invalidate the token
+  rpc Logout(LogoutRequest) returns (google.protobuf.Empty);
 }
 
 message CreateUserRequest {
-    string email = 1;
-    string password = 2;
-    string username = 3;
+  string email = 1;
+  string password = 2;
+  string username = 3;
 }
 
 message LoginRequest {
-    string email = 1;
-    string password = 2;
+  string email = 1;
+  string password = 2;
 }
 
 message UpdateUserRequest {
-    User user = 1;
-    google.protobuf.FieldMask update_mask = 2;
+  User user = 1;
+  google.protobuf.FieldMask update_mask = 2;
 }
 
 message UpdateTokenRequest {
-    string subject = 1;
-    repeated string roles = 2;
+  string subject = 1;
+  repeated string roles = 2;
 }
 
 message LogoutRequest {
-    Token token = 1;
+  Token token = 1;
 }
 
 message User {
-    string email = 1;
-    string password = 2;
-    string username = 3;
+  string email = 1;
+  string password = 2;
+  string username = 3;
 }
 
 message Token {
-    string access_token = 1;
-    string refresh_token = 2;
+  string access_token = 1;
+  string refresh_token = 2;
 }

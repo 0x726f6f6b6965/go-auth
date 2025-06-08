@@ -1,14 +1,13 @@
 package rbac.authz_test
 
-import rego.v1
 import data.rbac.authz as policy
+import rego.v1
 
 user_roles := {"admin": ["admin"], "user": ["user"]}
 
 role_grants := {
 	"user": [
 		{"action": "read", "resource": "user"},
-		{"action": "edit", "resource": "*"},
 	],
 	"refresh": [{"action": "edit", "resource": "token-update"}],
 }

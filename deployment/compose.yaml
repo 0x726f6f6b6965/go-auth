@@ -36,7 +36,7 @@ services:
       timeout: 5s
       retries: 5
   db:
-    image: postgres:16.1
+    image: postgres:17.5
     restart: always
     environment:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -49,3 +49,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  db-migrate:
+    image: migrate/migrate:v4.18.3
+    container_name: migration-instance
+    environment:
+      - PGPASSWORD=${POSTGRES_PASSWORD}
+      - PGUSER=${POSTGRES_USER}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - ./migrations:/migrations:ro
+    depends_on:
+      db:
+        condition: "service_healthy"
+    command: ["-path", "/migrations", "-database", "postgres://db:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable", "-verbose", "goto", "2"]

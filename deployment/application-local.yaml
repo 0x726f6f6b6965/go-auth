@@ -5,7 +5,7 @@ clients:
     host: "localhost"
     port: 6868
 db:
-  host: "localhost"
+  host: "db"
   port: 5432
   user: "postgres"
   password: "POSTGRES_PASSWORD"
